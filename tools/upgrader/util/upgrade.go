@@ -16,7 +16,7 @@ limitations under the License.
 package util
 
 import (
-	"fmt"
+	//"fmt"
 	"time"
 
 	"github.com/golang/glog"
@@ -28,6 +28,7 @@ import (
 	clusterv1 "sigs.k8s.io/cluster-api/pkg/apis/cluster/v1alpha1"
 	clientv1alpha1 "sigs.k8s.io/cluster-api/pkg/client/clientset_generated/clientset/typed/cluster/v1alpha1"
 	"sigs.k8s.io/cluster-api/util"
+	"fmt"
 )
 
 var (
@@ -40,6 +41,7 @@ func initClient(kubeconfig string) error {
 	if kubeconfig == "" {
 		kubeconfig = util.GetDefaultKubeConfigPath()
 	}
+	fmt.Println(kubeconfig)
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
 		glog.Fatalf("BuildConfigFromFlags failed: %v", err)
@@ -51,6 +53,7 @@ func initClient(kubeconfig string) error {
 		glog.Fatalf("error creating kube client set: %v", err)
 	}
 
+	fmt.Println(config.Host)
 	client, err = clientv1alpha1.NewForConfig(config)
 	if err != nil {
 		glog.Fatalf("error creating cluster api client: %v", err)
@@ -93,40 +96,39 @@ func UpgradeCluster(kubeversion string, kubeconfig string) error {
 	glog.Infof("Starting to upgrade cluster to version: %s", kubeversion)
 
 	if err := initClient(kubeconfig); err != nil {
+		fmt.Println(err, "**********")
 		return err
 	}
 
 	machine_list, err := machInterface.List(metav1.ListOptions{})
 	if err != nil {
+		fmt.Println(err,"********")
 		return err
 	}
 
 	glog.Info("Upgrading the control plane.")
 
 	// Update the control plan first. It assumes single master.
+	masterCount := 0
 	var master *clusterv1.Machine = nil
 	for _, mach := range machine_list.Items {
 		if util.IsMaster(&mach) {
+			masterCount++
 			master = &mach
-			break
-		}
-	}
-
-	if master == nil {
-		err = fmt.Errorf("No master is found.")
-	} else {
-		master.Spec.Versions.Kubelet = kubeversion
-		master.Spec.Versions.ControlPlane = kubeversion
-		new_machine, err := machInterface.Update(master)
-		if err == nil {
-			err = wait.Poll(5*time.Second, 10*time.Minute, func() (bool, error) {
-				ready, err := checkMachineReady(new_machine.Name, kubeversion)
-				if err != nil {
-					// Ignore the error as control plan is restarting.
-					return false, nil
-				}
-				return ready, nil
-			})
+			master.Spec.Versions.Kubelet = kubeversion
+			master.Spec.Versions.ControlPlane = kubeversion
+			new_machine, err := machInterface.Update(master)
+			if err == nil {
+				err = wait.Poll(5*time.Second, 10*time.Minute, func() (bool, error) {
+					ready, err := checkMachineReady(new_machine.Name, kubeversion)
+					if err != nil {
+						fmt.Println(err, ".")
+						// Ignore the error as control plan is restarting.
+						return false, nil
+					}
+					return ready, nil
+				})
+			}
 		}
 	}
 
@@ -136,7 +138,7 @@ func UpgradeCluster(kubeversion string, kubeconfig string) error {
 
 	glog.Info("Finished upgrading control plane.")
 
-	num_nodes := len(machine_list.Items) - 1
+	num_nodes := len(machine_list.Items) - masterCount
 	glog.Infof("Upgrading %d nodes in the cluster.", num_nodes)
 
 	// Continue to update all the nodes.

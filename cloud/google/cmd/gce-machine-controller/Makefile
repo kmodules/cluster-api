@@ -12,27 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-.PHONY: image push dev_image dev_push fix_gcs_permissions
+.PHONY: image push dev_image dev_push
 
-GCR_BUCKET = k8s-cluster-api
-PREFIX = gcr.io/$(GCR_BUCKET)
-DEV_PREFIX ?= gcr.io/$(shell gcloud config get-value project)
+PREFIX = pharmer
 NAME = gce-machine-controller
-TAG = 0.0.3
+TAG = 0.0.1
 
 image:
 	docker build -t "$(PREFIX)/$(NAME):$(TAG)" -f ./Dockerfile ../../../..
 
 push: image
 	docker push "$(PREFIX)/$(NAME):$(TAG)"
-	$(MAKE) fix_gcs_permissions
-
-fix_gcs_permissions:
-	gsutil acl ch -u AllUsers:READ gs://artifacts.$(GCR_BUCKET).appspot.com
-	gsutil -m acl ch -r -u AllUsers:READ gs://artifacts.$(GCR_BUCKET).appspot.com
 
 dev_image: 
-	docker build -t "$(DEV_PREFIX)/$(NAME):$(TAG)-dev" -f ./Dockerfile ../../../..
+	docker build -t "$(PREFIX)/$(NAME):$(TAG)-dev" -f ./Dockerfile ../../../..
 
 dev_push: dev_image
-	docker push "$(DEV_PREFIX)/$(NAME):$(TAG)-dev"
+	docker push "$(PREFIX)/$(NAME):$(TAG)-dev"

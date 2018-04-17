@@ -22,15 +22,30 @@ import (
 	"text/template"
 
 	clusterv1 "sigs.k8s.io/cluster-api/pkg/apis/cluster/v1alpha1"
+	kubeadmapi "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm/v1alpha1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/ghodss/yaml"
 )
 
 type templateParams struct {
 	Token        string
 	Cluster      *clusterv1.Cluster
 	Machine      *clusterv1.Machine
+	MasterConfiguration *kubeadmapi.MasterConfiguration
+	CAKey string
+	FrontProxyCAKey string
 	DockerImages []string
 	Preloaded    bool
 }
+
+func (td templateParams) MasterConfigurationYAML() (string, error) {
+	if td.MasterConfiguration == nil {
+		return "", nil
+	}
+	cb, err := yaml.Marshal(td.MasterConfiguration)
+	return string(cb), err
+}
+
 
 func nodeMetadata(params templateParams) (map[string]string, error) {
 	metadata := map[string]string{}
@@ -61,6 +76,40 @@ func masterMetadata(params templateParams) (map[string]string, error) {
 	}
 	metadata["startup-script"] = buf.String()
 	return metadata, nil
+}
+
+func buildKubeadmConfig(token string, machine *clusterv1.Machine) *kubeadmapi.MasterConfiguration  {
+	apiserver := []string{fmt.Sprintf("%v.c.%v.internal", machine.Name, "k8s-qa")}
+	cfg := kubeadmapi.MasterConfiguration{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "kubeadm.k8s.io/v1alpha1",
+			Kind:       "MasterConfiguration",
+		},
+		API: kubeadmapi.API{
+			AdvertiseAddress: fmt.Sprintf("%v.c.%v.internal", machine.Name, "k8s-qa"),
+			BindPort:         443,
+		},
+		Networking: kubeadmapi.Networking{
+			PodSubnet:     "10.240.0.0/16",
+			//		DNSDomain:     "cluster.local",
+		},
+		KubernetesVersion:          machine.Spec.Versions.ControlPlane,
+		//CloudProvider:              "gce",
+		Etcd: kubeadmapi.Etcd{
+			Endpoints: []string{fmt.Sprintf("http://%v.c.%v.internal:4001", machine.Name, "k8s-qa")},
+		},
+		APIServerCertSANs: append(apiserver, machine.Labels["PublicIP"]),
+		APIServerExtraArgs: map[string]string {
+			//"admission-control": "NamespaceLifecycle,LimitRanger,ServiceAccount,PersistentVolumeLabel,DefaultStorageClass,ValidatingAdmissionWebhook,DefaultTolerationSeconds,MutatingAdmissionWebhook,ResourceQuota",
+			"admission-control": "Initializers,NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,DefaultTolerationSeconds,NodeRestriction,ResourceQuota",
+		},
+		FeatureGates: map[string]bool{
+		//	"CoreDNS": true,
+		},
+		NodeName: machine.Name,
+		Token: token,
+	}
+	return &cfg
 }
 
 func isPreloaded(params templateParams) bool {
@@ -302,20 +351,93 @@ echo $PRIVATEIP > /tmp/.ip
 ` +
 	"PUBLICIP=`curl --retry 5 -sfH \"Metadata-Flavor: Google\" \"http://metadata/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip\"`" + `
 
+cat <<EOF > /root/service.json
+service json file
+EOF
 
-kubeadm init --apiserver-bind-port ${PORT} --token ${TOKEN} --kubernetes-version v${CONTROL_PLANE_VERSION} \
-             --apiserver-advertise-address ${PUBLICIP} --apiserver-cert-extra-sans ${PUBLICIP} ${PRIVATEIP} \
-             --service-cidr ${SERVICE_CIDR}
+CREDENTIAL_LOCATION=/root/service.json
+ETCD_VERSION={{ .Machine.Spec.Etcd.Version }}
+curl -L https://github.com/coreos/etcd/releases/download/v${ETCD_VERSION}/etcd-v${ETCD_VERSION}-linux-amd64.tar.gz -o etcd-v${ETCD_VERSION}-linux-amd64.tar.gz
+tar -C /opt/ -xzvf etcd-v${ETCD_VERSION}-linux-amd64.tar.gz
+
+wget https://storage.googleapis.com/hatest-etcd/etcd-manager-ctl
+chmod +x etcd-manager-ctl
+
+docker run -d \
+--net=host \
+--restart always \
+-v /tmp/etcd-manager:/tmp/etcd-manager \
+-v /opt:/opt \
+-v /root:/root \
+-e GOOGLE_APPLICATION_CREDENTIALS=${CREDENTIAL_LOCATION} \
+-p 4001:4001 \
+-p 8001:8001 \
+-p 8000:8000 \
+-p 2380:2380 \
+{{ .Machine.Spec.Etcd.ImageSource }} \
+--address=${PRIVATEIP} \
+--disco-storage={{ .Machine.Spec.Etcd.Discovery }} \
+--cluster-name={{ .Machine.Spec.Etcd.ClusterName }} \
+--backup-store=file:///tmp/etcd-manager/backups/{{ .Machine.Spec.Etcd.ClusterName }} \
+--data-dir=/tmp/etcd-manager/data/{{ .Machine.Spec.Etcd.ClusterName }}/{{ .Machine.Spec.Etcd.NodeId }} \
+--client-urls=http://${PRIVATEIP}:4001 \
+--quarantine-client-urls=http://${PRIVATEIP}:8001
+
+{{ if .Machine.Spec.Etcd.IsLeader }}
+./etcd-manager-ctl --members=1 --backup-store=file:///tmp/etcd-manager/backups/{{ .Machine.Spec.Etcd.ClusterName }} --etcd-version={{ .Machine.Spec.Etcd.Version }}
+{{ else }}
+export ETCDCTL_API=3; /opt/etcd-v${ETCD_VERSION}-linux-amd64/etcdctl --endpoints {{ .Machine.Spec.Etcd.LeaderEndpoint }} put /kope.io/etcd-manager/{{ .Machine.Spec.Etcd.ClusterName }}/spec '{ "memberCount": {{ 2 }}, "etcdVersion": "{{ .Machine.Spec.Etcd.Version }}"}'
+{{ end }}
+
+{{ if .MasterConfiguration }}
+mkdir -p /etc/kubernetes/kubeadm
+cat > /etc/kubernetes/kubeadm/base.yaml <<EOF
+{{ .MasterConfigurationYAML }}
+EOF
+{{ end }}
+
+wget -O pre-k https://cdn.appscode.com/binaries/pre-k/1.9.0-rc.0/pre-k-linux-amd64 \
+	&& chmod +x pre-k \
+	&& mv pre-k /usr/bin/
+
+
+mkdir -p /etc/kubernetes/pki
+
+cat > /etc/kubernetes/pki/ca.key <<EOF
+{{ .CAKey }}
+EOF
+pre-k get ca-cert --common-name=ca < /etc/kubernetes/pki/ca.key > /etc/kubernetes/pki/ca.crt
+
+
+cat > /etc/kubernetes/pki/front-proxy-ca.key <<EOF
+{{ .FrontProxyCAKey }}
+EOF
+pre-k get ca-cert --common-name=front-proxy-ca < /etc/kubernetes/pki/front-proxy-ca.key > /etc/kubernetes/pki/front-proxy-ca.crt
+chmod 600 /etc/kubernetes/pki/ca.key /etc/kubernetes/pki/front-proxy-ca.key
+
+
+pre-k merge master-config \
+	--config=/etc/kubernetes/kubeadm/base.yaml \
+	--apiserver-advertise-address=$(pre-k machine public-ips --all=false) \
+	--apiserver-cert-extra-sans=$(pre-k machine public-ips --routable) \
+	--apiserver-cert-extra-sans=$(pre-k machine private-ips) \
+	--node-name=${NODE_NAME:-} \
+	> /etc/kubernetes/kubeadm/config.yaml
+
+kubeadm init --config=/etc/kubernetes/kubeadm/config.yaml
+
 
 # install weavenet
 sysctl net.bridge.bridge-nf-call-iptables=1
 export kubever=$(kubectl version --kubeconfig /etc/kubernetes/admin.conf | base64 | tr -d '\n')
-kubectl apply --kubeconfig /etc/kubernetes/admin.conf -f "https://cloud.weave.works/k8s/net?k8s-version=$kubever"
+kubectl apply --kubeconfig /etc/kubernetes/admin.conf -f "https://docs.projectcalico.org/v3.0/getting-started/kubernetes/installation/hosted/kubeadm/1.7/calico.yaml"
 
 for tries in $(seq 1 60); do
 	kubectl --kubeconfig /etc/kubernetes/kubelet.conf annotate --overwrite node $(hostname) machine=${MACHINE} && break
 	sleep 1
 done
+
+apt-get install nginx -y
 
 {{- end }} {{/* end configure */}}
 `

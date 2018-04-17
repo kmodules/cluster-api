@@ -81,6 +81,9 @@ func (d *deployer) CreateCluster(c *clusterv1.Cluster, machines []*clusterv1.Mac
 }
 
 func (d *deployer) AddNodes(machines []*clusterv1.Machine) error {
+	if err := d.initApiClient(); err != nil {
+		return err
+	}
 	if err := d.createMachines(machines); err != nil {
 		return err
 	}
@@ -120,14 +123,18 @@ func (d *deployer) DeleteCluster() error {
 }
 
 func (d *deployer) deleteMasterVM(machines []*clusterv1.Machine) error {
-	master := util.GetMaster(machines)
-	if master == nil {
-		return fmt.Errorf("error deleting master vm, no master found")
-	}
+	for _, machine := range machines {
+		if util.IsMaster(machine) {
+			master := machine
+			if master == nil {
+				return fmt.Errorf("error deleting master vm, no master found")
+			}
 
-	glog.Infof("Deleting master vm %s", master.Name)
-	if err := d.machineDeployer.Delete(master); err != nil {
-		return err
+			glog.Infof("Deleting master vm %s", master.Name)
+			if err := d.machineDeployer.Delete(master); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }

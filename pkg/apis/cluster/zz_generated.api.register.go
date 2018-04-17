@@ -168,7 +168,7 @@ type ContainerRuntimeInfo struct {
 
 type ClusterSpec struct {
 	ClusterNetwork ClusterNetworkingConfig
-	ProviderConfig ProviderConfig
+	ProviderConfig string
 }
 
 type MachineSpec struct {
@@ -178,20 +178,33 @@ type MachineSpec struct {
 	Roles          []clustercommon.MachineRole
 	Versions       MachineVersionInfo
 	ConfigSource   *corev1.NodeConfigSource
-}
-
-type ProviderConfig struct {
-	Value     *pkgruntime.RawExtension
-	ValueFrom *ProviderConfigSource
-}
-
-type ProviderConfigSource struct {
+	Etcd           EtcdSpec
 }
 
 type ClusterNetworkingConfig struct {
 	Services      NetworkRanges
 	Pods          NetworkRanges
 	ServiceDomain string
+}
+
+type EtcdSpec struct {
+	ClusterName    string
+	ImageSource    string
+	Address        string
+	Discovery      string
+	NodeId         string
+	IsLeader       bool
+	Version        string
+	LeaderEndpoint string
+}
+
+type NetworkRanges struct {
+	CIDRBlocks []string
+}
+
+type ProviderConfig struct {
+	Value     *pkgruntime.RawExtension
+	ValueFrom *ProviderConfigSource
 }
 
 // +genclient
@@ -205,8 +218,7 @@ type MachineSet struct {
 	Status MachineSetStatus
 }
 
-type NetworkRanges struct {
-	CIDRBlocks []string
+type ProviderConfigSource struct {
 }
 
 type MachineSetStatus struct {
@@ -226,11 +238,6 @@ type MachineSetSpec struct {
 	Template        MachineTemplateSpec
 }
 
-type MachineTemplateSpec struct {
-	metav1.ObjectMeta
-	Spec MachineSpec
-}
-
 // +genclient
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -240,6 +247,11 @@ type MachineDeployment struct {
 	metav1.ObjectMeta
 	Spec   MachineDeploymentSpec
 	Status MachineDeploymentStatus
+}
+
+type MachineTemplateSpec struct {
+	metav1.ObjectMeta
+	Spec MachineSpec
 }
 
 type MachineDeploymentStatus struct {

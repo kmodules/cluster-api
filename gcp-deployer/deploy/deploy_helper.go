@@ -29,6 +29,9 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	clusterv1 "sigs.k8s.io/cluster-api/pkg/apis/cluster/v1alpha1"
 	"sigs.k8s.io/cluster-api/util"
+	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/cluster-api/cloud"
+	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 const (
@@ -41,6 +44,19 @@ const (
 func (d *deployer) createCluster(c *clusterv1.Cluster, machines []*clusterv1.Machine, vmCreated *bool) error {
 	if c.GetName() == "" {
 		return fmt.Errorf("cluster name must be specified for cluster creation")
+	}
+	leader := true
+	for index, machine := range machines {
+		if util.IsMaster(machine) {
+			machines[index].Spec.Etcd = clusterv1.EtcdSpec{
+				ClusterName: c.Name,
+				ImageSource: "sanjid/etcd-manager:latest",
+				Discovery:   fmt.Sprintf("gs://pharmer-%v/discovery", c.Name),
+				IsLeader: leader,
+				Version: "3.2.12",
+				}
+			leader = false
+		}
 	}
 	master := util.GetMaster(machines)
 	if master == nil {
@@ -59,6 +75,18 @@ func (d *deployer) createCluster(c *clusterv1.Cluster, machines []*clusterv1.Mac
 
 	glog.Infof("Starting master creation %s", master.GetName())
 
+	glog.Infof("Creating Loadbalancer")
+	master.ClusterName = c.GetName()
+	if err := d.createLoadBalancer(master); err != nil {
+		return err
+	}
+	if ip, err := d.machineDeployer.GetIP(master); err != nil {
+		return err
+	}else {
+		master.Labels["PublicIP"] = ip
+	}
+
+
 	if err := d.machineDeployer.Create(c, master); err != nil {
 		return err
 	}
@@ -71,13 +99,25 @@ func (d *deployer) createCluster(c *clusterv1.Cluster, machines []*clusterv1.Mac
 		return fmt.Errorf("unable to get master IP: %v", err)
 	}
 
-	if err := d.copyKubeConfig(master); err != nil {
+	// wait for nodes to start
+	var kc kubernetes.Interface
+	host := fmt.Sprintf("https://%v:443", masterIP)
+	fmt.Println("apiserver ip = ", host)
+	kc, err = cloud.NewAdminClient(host)
+	if err = d.waitForReadyAPIServer(kc); err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+
+
+
+
+	if err := d.copyKubeConfig(host, master); err != nil {
 		return fmt.Errorf("unable to write kubeconfig: %v", err)
 	}
 
-	if err := d.waitForApiserver(masterIP); err != nil {
-		return fmt.Errorf("apiserver never came up: %v", err)
-	}
+
 
 	if err := d.initApiClient(); err != nil {
 		return err
@@ -130,6 +170,26 @@ func (d *deployer) waitForClusterResourceReady() error {
 
 func (d *deployer) createMachines(machines []*clusterv1.Machine) error {
 	for _, machine := range machines {
+		leader, err := d.leaderSelect()
+		if err != nil {
+			fmt.Println(err, "************************")
+			return err
+		}
+		fmt.Println(leader,".........................<>")
+		if leader != nil && util.IsMaster(machine) {
+			leader.ClusterName = leader.Spec.Etcd.ClusterName
+			machine.ClusterName = leader.ClusterName
+			machine.Spec.Etcd = clusterv1.EtcdSpec{
+				ClusterName: leader.ClusterName,
+				ImageSource: "sanjid/etcd-manager:latest",
+				Discovery:   fmt.Sprintf("gs://pharmer-%v/discovery", leader.ClusterName),
+				IsLeader: false,
+				Version: "3.2.12",
+				LeaderEndpoint: fmt.Sprintf("http://%v.c.%v.internal:4001", leader.Name, "k8s-qa"),
+			}
+			machine.Labels["PublicIP"] = leader.Labels["PublicIP"]
+		}
+
 		m, err := d.client.Machines(apiv1.NamespaceDefault).Create(machine)
 		if err != nil {
 			return err
@@ -139,8 +199,22 @@ func (d *deployer) createMachines(machines []*clusterv1.Machine) error {
 	return nil
 }
 
+func (d *deployer) leaderSelect() (*clusterv1.Machine, error)  {
+	machines,err := d.client.Machines(apiv1.NamespaceDefault).List(metav1.ListOptions{})
+	for _, machine := range machines.Items {
+		if util.IsMaster(&machine) && machine.Spec.Etcd.IsLeader {
+			return &machine, err
+		}
+	}
+	return nil, nil
+}
+
 func (d *deployer) createMachine(m *clusterv1.Machine) error {
 	return d.createMachines([]*clusterv1.Machine{m})
+}
+
+func (d *deployer) createLoadBalancer(machine *clusterv1.Machine) error {
+	return d.machineDeployer.CreateLoadbalancer(machine)
 }
 
 func (d *deployer) deleteAllMachines() error {
@@ -205,10 +279,10 @@ func (d *deployer) getMasterIP(master *clusterv1.Machine) (string, error) {
 	return "", fmt.Errorf("unable to find Master IP after defined wait")
 }
 
-func (d *deployer) copyKubeConfig(master *clusterv1.Machine) error {
+func (d *deployer) copyKubeConfig(apiserverUrl string, master *clusterv1.Machine) error {
 	writeErr := util.Retry(func() (bool, error) {
 		glog.Infof("Waiting for Kubernetes to come up...")
-		config, err := d.machineDeployer.GetKubeConfig(master)
+		config, err := cloud.GetKubeConfig(apiserverUrl, master)
 		if err != nil {
 			glog.Errorf("Error while retriving kubeconfig %s", err)
 			return false, err
@@ -251,10 +325,27 @@ func (d *deployer) writeConfigToDisk(config string) error {
 	glog.Infof("wrote kubeconfig to [%s]", d.configPath)
 	return nil
 }
+const (
+	RetryInterval = 5 * time.Second
+	RetryTimeout  = 15 * time.Minute
+)
+func (d *deployer) waitForReadyAPIServer(client kubernetes.Interface) error {
+	attempt := 0
+	return wait.PollImmediate(RetryInterval, RetryTimeout, func() (bool, error) {
+		attempt++
+		glog.Info("Attempt %v: Probing Kubernetes api server ...", attempt)
+
+		_, err := client.CoreV1().Pods(apiv1.NamespaceAll).List(metav1.ListOptions{})
+		fmt.Println(err, ",.,.,.,.,.,")
+		return err == nil, nil
+	})
+}
+
 
 // Make sure you successfully call setMasterIp first.
 func (d *deployer) waitForApiserver(master string) error {
 	endpoint := fmt.Sprintf("https://%s/healthz", master)
+	fmt.Println(endpoint)
 
 	// Skip certificate validation since we're only looking for signs of
 	// health, and we're not going to have the CA in our default chain.
@@ -266,6 +357,7 @@ func (d *deployer) waitForApiserver(master string) error {
 	waitErr := util.Retry(func() (bool, error) {
 		glog.Info("Waiting for apiserver to become healthy...")
 		resp, err := client.Get(endpoint)
+		fmt.Println(resp)
 		return (err == nil && resp.StatusCode == 200), nil
 	}, 3)
 

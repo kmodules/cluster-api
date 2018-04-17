@@ -109,6 +109,7 @@ type MachineRole string
 const (
 	MasterRole MachineRole = "Master"
 	NodeRole   MachineRole = "Node"
+	LeaderRole MachineRole = "Leader"
 )
 
 type MachineSetStatusError string

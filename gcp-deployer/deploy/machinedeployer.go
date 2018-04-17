@@ -10,6 +10,7 @@ type machineDeployer interface {
 	machine.Actuator
 	GetIP(machine *clusterv1.Machine) (string, error)
 	GetKubeConfig(master *clusterv1.Machine) (string, error)
+	CreateLoadbalancer(machine *clusterv1.Machine) error
 
 	// Create and start the machine controller. The list of initial
 	// machines don't have to be reconciled as part of this function, but

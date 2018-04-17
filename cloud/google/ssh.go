@@ -97,12 +97,14 @@ func (gce *GCEClient) setupSSHAccess(m *clusterv1.Machine) error {
 func (gce *GCEClient) remoteSshCommand(m *clusterv1.Machine, cmd string) (string, error) {
 	glog.Infof("Remote SSH execution '%s' on %s", cmd, m.ObjectMeta.Name)
 
-	publicIP, err := gce.GetIP(m)
+	publicIP, err := gce.GetSSHIp(m)
 	if err != nil {
 		return "", err
 	}
 
+	fmt.Println(publicIP,"*************", gce.sshCreds.privateKeyPath, "<>", gce.sshCreds.user,"@", publicIP, cmd)
 	command := fmt.Sprintf("echo STARTFILE; %s", cmd)
+	fmt.Println(command)
 	c := exec.Command("ssh", "-i", gce.sshCreds.privateKeyPath, gce.sshCreds.user+"@"+publicIP, command)
 	out, err := c.CombinedOutput()
 	if err != nil {
