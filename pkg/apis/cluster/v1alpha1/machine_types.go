@@ -84,7 +84,24 @@ type MachineSpec struct {
 	// as-is.
 	// +optional
 	ConfigSource *corev1.NodeConfigSource `json:"configSource,omitempty"`
+
+	// For etcd information
+	// +optional
+	Etcd EtcdSpec `json:"etcd,omitempty"`
 }
+
+// EtcdSpec defines the current etcd information hosted on current node
+type EtcdSpec struct {
+	ClusterName    string `json:"clusterName,omitempty"`
+	ImageSource    string `json:"imageSource,omitempty"`
+	Address        string `json:"address,omitempty"`
+	Discovery      string `json:"discovery,omitempty"`
+	NodeId         string `json:"nodeId,omitempty"`
+	IsLeader       bool   `json:"isLeader,omitempty"`
+	Version        string `json:"version,omitempty"`
+	LeaderEndpoint string `json:"leaderEndpoint,omitempty"`
+}
+
 
 // MachineStatus defines the observed state of Machine
 type MachineStatus struct {

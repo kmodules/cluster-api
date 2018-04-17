@@ -43,6 +43,16 @@
   revision = "de5bf2ad457846296e2031421a34e2568e304e35"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/appscode/go"
+  packages = [
+    "crypto/ssh",
+    "runtime",
+    "wait"
+  ]
+  revision = "0eb2cabe3897bfd0fe615e9849583a88bcc82df4"
+
+[[projects]]
   name = "github.com/asaskevich/govalidator"
   packages = ["."]
   revision = "ccb8e960c48f04d6935e72476ae4a51028f9e22f"
@@ -96,6 +106,15 @@
   packages = ["."]
   revision = "06ea1031745cb8b3dab3f6a236daf2b0aa468b7e"
   version = "v3.2.0"
+
+[[projects]]
+  name = "github.com/digitalocean/godo"
+  packages = [
+    ".",
+    "context"
+  ]
+  revision = "7a32b5ce17203924a21366d5031032fd326d5051"
+  version = "v1.1.3"
 
 [[projects]]
   branch = "master"
@@ -221,6 +240,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/google/go-querystring"
+  packages = ["query"]
+  revision = "53e6ce116135b80d037921a7fdd5138cf32d7a8a"
+
+[[projects]]
+  branch = "master"
   name = "github.com/google/gofuzz"
   packages = ["."]
   revision = "24818f796faf91cd76ec7bddd72458fbced7a6c1"
@@ -257,6 +282,13 @@
     "diskcache"
   ]
   revision = "9cad4c3443a7200dd6400aef47183728de563a38"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/hashicorp/go-version"
+  packages = ["."]
+  revision = "53932f80ddea12bea96be074f9fb2dc545806aba"
+  source = "https://github.com/appscode/go-version.git"
 
 [[projects]]
   branch = "master"
@@ -378,6 +410,12 @@
   version = "v2.0.1"
 
 [[projects]]
+  name = "github.com/pkg/errors"
+  packages = ["."]
+  revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
+  version = "v0.8.0"
+
+[[projects]]
   name = "github.com/prometheus/client_golang"
   packages = ["prometheus"]
   revision = "c5b7fccd204277076155f10851dad72b76a49317"
@@ -423,16 +461,27 @@
   version = "v1.0.0"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/tent/http-link-go"
+  packages = ["."]
+  revision = "ac974c61c2f990f4115b119354b5e0b47550e888"
+
+[[projects]]
   name = "github.com/ugorji/go"
   packages = ["codec"]
   revision = "9831f2c3ac1068a78f50999a30db84270f647af6"
   version = "v1.1"
 
 [[projects]]
-  branch = "master"
   name = "golang.org/x/crypto"
-  packages = ["ssh/terminal"]
-  revision = "88942b9c40a4c9d203b82b3731787b672d6e809b"
+  packages = [
+    "curve25519",
+    "ed25519",
+    "ed25519/internal/edwards25519",
+    "ssh",
+    "ssh/terminal"
+  ]
+  revision = "84e98f45760e87786b7f24603b8166a6fa09811d"
 
 [[projects]]
   branch = "master"
@@ -467,10 +516,7 @@
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
-  packages = [
-    "unix",
-    "windows"
-  ]
+  packages = ["unix"]
   revision = "13d03a9a82fba647c21a0ef8fba44a795d0f0835"
 
 [[projects]]
@@ -494,15 +540,6 @@
   ]
   revision = "f21a4dfb5e38f5895301dc265a8def02365cc3d0"
   version = "v0.3.0"
-
-[[projects]]
-  branch = "master"
-  name = "golang.org/x/tools"
-  packages = [
-    "go/ast/astutil",
-    "imports"
-  ]
-  revision = "ac136b6c2db7c4d43955e4bc7174db36dc0539c0"
 
 [[projects]]
   branch = "master"
@@ -916,27 +953,6 @@
   revision = "90539b4e75a8daaf7f67c3874c6180bfb1a63936"
 
 [[projects]]
-  name = "k8s.io/code-generator"
-  packages = [
-    "cmd/conversion-gen",
-    "cmd/conversion-gen/generators"
-  ]
-  revision = "91d3f6a57905178524105a085085901bb73bd3dc"
-  version = "kubernetes-1.9.1"
-
-[[projects]]
-  branch = "master"
-  name = "k8s.io/gengo"
-  packages = [
-    "args",
-    "generator",
-    "namer",
-    "parser",
-    "types"
-  ]
-  revision = "01a732e01d00cb9a81bb0ca050d3e6d2b947927b"
-
-[[projects]]
   branch = "master"
   name = "k8s.io/kube-openapi"
   packages = [
@@ -948,9 +964,38 @@
   ]
   revision = "50ae88d24ede7b8bad68e23c805b5d3da5c8abaf"
 
+[[projects]]
+  name = "k8s.io/kubernetes"
+  packages = [
+    "cmd/kubeadm/app/apis/kubeadm",
+    "cmd/kubeadm/app/apis/kubeadm/v1alpha1",
+    "cmd/kubeadm/app/constants",
+    "cmd/kubeadm/app/features",
+    "cmd/kubeadm/app/util/pubkeypin",
+    "pkg/apis/core",
+    "pkg/apis/core/helper",
+    "pkg/apis/core/v1/helper",
+    "pkg/apis/core/v1/helper/qos",
+    "pkg/kubelet/apis/kubeletconfig",
+    "pkg/kubelet/apis/kubeletconfig/scheme",
+    "pkg/kubelet/apis/kubeletconfig/v1alpha1",
+    "pkg/kubelet/qos",
+    "pkg/kubelet/types",
+    "pkg/master/ports",
+    "pkg/proxy/apis/kubeproxyconfig",
+    "pkg/proxy/apis/kubeproxyconfig/scheme",
+    "pkg/proxy/apis/kubeproxyconfig/v1alpha1",
+    "pkg/registry/core/service/allocator",
+    "pkg/registry/core/service/ipallocator",
+    "pkg/util/pointer",
+    "pkg/util/version"
+  ]
+  revision = "9f8ebd171479bec0ada837d7ee641dec2f8c6dd1"
+  version = "v1.9.6"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "cd83d550d0ee64c0847a31ab37fce90f980e5762b76ee5a9963959b0dd020eed"
+  inputs-digest = "cd4ac5c4ec625d74ae9e06fbdb20c732a7de4627d6118289dd53ab47d3fd00a9"
   solver-name = "gps-cdcl"
   solver-version = 1

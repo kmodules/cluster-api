@@ -32,9 +32,9 @@ import (
 	"sigs.k8s.io/cluster-api/cloud/google/config"
 )
 
-var apiServerImage = "gcr.io/k8s-cluster-api/cluster-apiserver:0.0.2"
-var controllerManagerImage = "gcr.io/k8s-cluster-api/controller-manager:0.0.1"
-var machineControllerImage = "gcr.io/k8s-cluster-api/gce-machine-controller:0.0.3"
+var apiServerImage = "pharmer/cluster-apiserver:0.0.1"
+var controllerManagerImage = "pharmer/cluster-controller-manager:0.0.1"
+var machineControllerImage = "pharmer/gce-machine-controller:0.0.1"
 
 func init() {
 	if img, ok := os.LookupEnv("MACHINE_CONTROLLER_IMAGE"); ok {
@@ -164,7 +164,7 @@ func CreateApiServerAndController(token string) error {
 			return nil
 		} else {
 			if tries < maxTries-1 {
-				glog.Info("Error scheduling machine controller. Will retry...\n")
+				glog.Info("Error scheduling machine controller. Will retry...\n", err)
 				time.Sleep(3 * time.Second)
 			}
 		}

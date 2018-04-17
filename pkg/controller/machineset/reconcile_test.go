@@ -176,14 +176,14 @@ func createMachineSet(replicas int, machineSetName string, machineName string, n
 		},
 		Spec: v1alpha1.MachineSetSpec{
 			Replicas: &replicasInt32,
-			Selector:metav1.LabelSelector{
-				MatchLabels: map[string]string{"type":"strongMachine"},
+			Selector: metav1.LabelSelector{
+				MatchLabels: map[string]string{"type": "strongMachine"},
 			},
 			Template: v1alpha1.MachineTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      machineName,
 					Namespace: namespace,
-					Labels: map[string]string{"type":"strongMachine"},
+					Labels:    map[string]string{"type": "strongMachine"},
 				},
 				Spec: v1alpha1.MachineSpec{
 					ProviderConfig: v1alpha1.ProviderConfig{
@@ -213,7 +213,6 @@ func machineFromMachineSet(machineSet *v1alpha1.MachineSet, name string) *v1alph
 
 func machineWithDifferentLabels(machineSet *v1alpha1.MachineSet, name string) *v1alpha1.Machine {
 	amachine := machineFromMachineSet(machineSet, name)
-	amachine.Labels = map[string]string{"foo":"bar"}
+	amachine.Labels = map[string]string{"foo": "bar"}
 	return amachine
 }
-

@@ -22,18 +22,22 @@ import (
 
 	"github.com/golang/glog"
 
-	"sigs.k8s.io/cluster-api/cloud/google"
+	//"sigs.k8s.io/cluster-api/cloud/google"
+//	"context"
+//	"sigs.k8s.io/cluster-api/cloud"
 	clusterv1 "sigs.k8s.io/cluster-api/pkg/apis/cluster/v1alpha1"
 	"sigs.k8s.io/cluster-api/pkg/client/clientset_generated/clientset"
 	"sigs.k8s.io/cluster-api/pkg/client/clientset_generated/clientset/typed/cluster/v1alpha1"
 	"sigs.k8s.io/cluster-api/util"
 	apiutil "sigs.k8s.io/cluster-api/util"
+	"sigs.k8s.io/cluster-api/cloud"
+	"context"
 )
 
 type deployer struct {
 	token           string
 	configPath      string
-	machineDeployer machineDeployer
+	machineDeployer MachineDeployer
 	client          v1alpha1.ClusterV1alpha1Interface
 	clientSet       clientset.Interface
 }
@@ -54,13 +58,23 @@ func NewDeployer(provider string, configPath string) *deployer {
 			glog.Exit(fmt.Sprintf("Failed to set Kubeconfig path err %v\n", err))
 		}
 	}
-	ma, err := google.NewMachineActuator(token, nil)
+	cm, err := cloud.GetCloudManager(provider, context.Background())
 	if err != nil {
 		glog.Exit(err)
 	}
+	err = cm.PreparedActuator(token, nil)
+	if err != nil {
+		glog.Exit(err)
+	}
+
+	if err != nil {
+		glog.Exit(err)
+	}
+
+
 	return &deployer{
 		token:           token,
-		machineDeployer: ma,
+		machineDeployer: cm,
 		configPath:      configPath,
 	}
 }
@@ -68,6 +82,7 @@ func NewDeployer(provider string, configPath string) *deployer {
 func (d *deployer) CreateCluster(c *clusterv1.Cluster, machines []*clusterv1.Machine) error {
 	vmCreated := false
 	if err := d.createCluster(c, machines, &vmCreated); err != nil {
+		fmt.Println(err,"<><>")
 		if vmCreated {
 			d.deleteMasterVM(machines)
 		}
@@ -81,6 +96,9 @@ func (d *deployer) CreateCluster(c *clusterv1.Cluster, machines []*clusterv1.Mac
 }
 
 func (d *deployer) AddNodes(machines []*clusterv1.Machine) error {
+	if err := d.initApiClient(); err != nil {
+		return err
+	}
 	if err := d.createMachines(machines); err != nil {
 		return err
 	}
@@ -120,14 +138,18 @@ func (d *deployer) DeleteCluster() error {
 }
 
 func (d *deployer) deleteMasterVM(machines []*clusterv1.Machine) error {
-	master := util.GetMaster(machines)
-	if master == nil {
-		return fmt.Errorf("error deleting master vm, no master found")
-	}
+	for _, machine := range machines {
+		if util.IsMaster(machine) {
+			master := machine
+			if master == nil {
+				return fmt.Errorf("error deleting master vm, no master found")
+			}
 
-	glog.Infof("Deleting master vm %s", master.Name)
-	if err := d.machineDeployer.Delete(master); err != nil {
-		return err
+			glog.Infof("Deleting master vm %s", master.Name)
+			if err := d.machineDeployer.Delete(master); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }

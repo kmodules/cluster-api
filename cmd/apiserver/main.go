@@ -1,4 +1,3 @@
-
 /*
 Copyright 2018 The Kubernetes Authors.
 
@@ -15,13 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-
 package main
 
 import (
 	// Make sure glide gets these dependencies
-	_ "k8s.io/apimachinery/pkg/apis/meta/v1"
 	_ "github.com/go-openapi/loads"
+	_ "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/kubernetes-incubator/apiserver-builder/pkg/cmd/server"
 	_ "k8s.io/client-go/plugin/pkg/client/auth" // Enable cloud provider auth

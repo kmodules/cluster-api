@@ -117,6 +117,17 @@ func Resource(resource string) schema.GroupResource {
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
+type MachineDeployment struct {
+	metav1.TypeMeta
+	metav1.ObjectMeta
+	Spec   MachineDeploymentSpec
+	Status MachineDeploymentStatus
+}
+
+// +genclient
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
 type Machine struct {
 	metav1.TypeMeta
 	metav1.ObjectMeta
@@ -124,15 +135,13 @@ type Machine struct {
 	Status MachineStatus
 }
 
-// +genclient
-// +genclient
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
-type Cluster struct {
-	metav1.TypeMeta
-	metav1.ObjectMeta
-	Spec   ClusterSpec
-	Status ClusterStatus
+type MachineDeploymentStatus struct {
+	ObservedGeneration  int64
+	Replicas            int32
+	UpdatedReplicas     int32
+	ReadyReplicas       int32
+	AvailableReplicas   int32
+	UnavailableReplicas int32
 }
 
 type MachineStatus struct {
@@ -143,11 +152,14 @@ type MachineStatus struct {
 	ErrorMessage *string
 }
 
-type ClusterStatus struct {
-	APIEndpoints   []APIEndpoint
-	ErrorReason    clustercommon.ClusterStatusError
-	ErrorMessage   string
-	ProviderStatus string
+type MachineSpec struct {
+	metav1.ObjectMeta
+	Taints         []corev1.Taint
+	ProviderConfig ProviderConfig
+	Roles          []clustercommon.MachineRole
+	Versions       MachineVersionInfo
+	ConfigSource   *corev1.NodeConfigSource
+	Etcd           EtcdSpec
 }
 
 type MachineVersionInfo struct {
@@ -156,9 +168,15 @@ type MachineVersionInfo struct {
 	ContainerRuntime ContainerRuntimeInfo
 }
 
-type APIEndpoint struct {
-	Host string
-	Port int
+type EtcdSpec struct {
+	ClusterName    string
+	ImageSource    string
+	Address        string
+	Discovery      string
+	NodeId         string
+	IsLeader       bool
+	Version        string
+	LeaderEndpoint string
 }
 
 type ContainerRuntimeInfo struct {
@@ -166,89 +184,9 @@ type ContainerRuntimeInfo struct {
 	Version string
 }
 
-type ClusterSpec struct {
-	ClusterNetwork ClusterNetworkingConfig
-	ProviderConfig ProviderConfig
-}
-
-type MachineSpec struct {
-	metav1.ObjectMeta
-	Taints         []corev1.Taint
-	ProviderConfig ProviderConfig
-	Roles          []clustercommon.MachineRole
-	Versions       MachineVersionInfo
-	ConfigSource   *corev1.NodeConfigSource
-}
-
 type ProviderConfig struct {
 	Value     *pkgruntime.RawExtension
 	ValueFrom *ProviderConfigSource
-}
-
-type ProviderConfigSource struct {
-}
-
-type ClusterNetworkingConfig struct {
-	Services      NetworkRanges
-	Pods          NetworkRanges
-	ServiceDomain string
-}
-
-// +genclient
-// +genclient
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
-type MachineSet struct {
-	metav1.TypeMeta
-	metav1.ObjectMeta
-	Spec   MachineSetSpec
-	Status MachineSetStatus
-}
-
-type NetworkRanges struct {
-	CIDRBlocks []string
-}
-
-type MachineSetStatus struct {
-	Replicas             int32
-	FullyLabeledReplicas int32
-	ReadyReplicas        int32
-	AvailableReplicas    int32
-	ObservedGeneration   int64
-	ErrorReason          *clustercommon.MachineSetStatusError
-	ErrorMessage         *string
-}
-
-type MachineSetSpec struct {
-	Replicas        *int32
-	MinReadySeconds int32
-	Selector        metav1.LabelSelector
-	Template        MachineTemplateSpec
-}
-
-type MachineTemplateSpec struct {
-	metav1.ObjectMeta
-	Spec MachineSpec
-}
-
-// +genclient
-// +genclient
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
-type MachineDeployment struct {
-	metav1.TypeMeta
-	metav1.ObjectMeta
-	Spec   MachineDeploymentSpec
-	Status MachineDeploymentStatus
-}
-
-type MachineDeploymentStatus struct {
-	ObservedGeneration  int64
-	Replicas            int32
-	UpdatedReplicas     int32
-	ReadyReplicas       int32
-	AvailableReplicas   int32
-	UnavailableReplicas int32
 }
 
 type MachineDeploymentSpec struct {
@@ -262,14 +200,88 @@ type MachineDeploymentSpec struct {
 	ProgressDeadlineSeconds *int32
 }
 
+type ProviderConfigSource struct {
+}
+
 type MachineDeploymentStrategy struct {
 	Type          clustercommon.MachineDeploymentStrategyType
 	RollingUpdate *MachineRollingUpdateDeployment
 }
 
+type MachineTemplateSpec struct {
+	metav1.ObjectMeta
+	Spec MachineSpec
+}
+
 type MachineRollingUpdateDeployment struct {
 	MaxUnavailable *utilintstr.IntOrString
 	MaxSurge       *utilintstr.IntOrString
+}
+
+// +genclient
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type Cluster struct {
+	metav1.TypeMeta
+	metav1.ObjectMeta
+	Spec   ClusterSpec
+	Status ClusterStatus
+}
+
+// +genclient
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type MachineSet struct {
+	metav1.TypeMeta
+	metav1.ObjectMeta
+	Spec   MachineSetSpec
+	Status MachineSetStatus
+}
+
+type ClusterStatus struct {
+	APIEndpoints   []APIEndpoint
+	ErrorReason    clustercommon.ClusterStatusError
+	ErrorMessage   string
+	ProviderStatus string
+}
+
+type MachineSetStatus struct {
+	Replicas             int32
+	FullyLabeledReplicas int32
+	ReadyReplicas        int32
+	AvailableReplicas    int32
+	ObservedGeneration   int64
+	ErrorReason          *clustercommon.MachineSetStatusError
+	ErrorMessage         *string
+}
+
+type APIEndpoint struct {
+	Host string
+	Port int
+}
+
+type MachineSetSpec struct {
+	Replicas        *int32
+	MinReadySeconds int32
+	Selector        metav1.LabelSelector
+	Template        MachineTemplateSpec
+}
+
+type ClusterSpec struct {
+	ClusterNetwork ClusterNetworkingConfig
+	ProviderConfig string
+}
+
+type ClusterNetworkingConfig struct {
+	Services      NetworkRanges
+	Pods          NetworkRanges
+	ServiceDomain string
+}
+
+type NetworkRanges struct {
+	CIDRBlocks []string
 }
 
 //

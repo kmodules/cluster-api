@@ -1,4 +1,3 @@
-
 /*
 Copyright 2018 The Kubernetes Authors.
 
@@ -15,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-
 package v1alpha1
 
 import (
@@ -25,11 +23,11 @@ import (
 	"k8s.io/apiserver/pkg/endpoints/request"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/validation/field"
-	"sigs.k8s.io/cluster-api/pkg/apis/cluster/common"
-	"k8s.io/apimachinery/pkg/labels"
-	"sigs.k8s.io/cluster-api/pkg/apis/cluster"
 	metav1validation "k8s.io/apimachinery/pkg/apis/meta/v1/validation"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/validation/field"
+	"sigs.k8s.io/cluster-api/pkg/apis/cluster"
+	"sigs.k8s.io/cluster-api/pkg/apis/cluster/common"
 )
 
 // +genclient
@@ -146,7 +144,7 @@ func (MachineSetStrategy) Validate(ctx request.Context, obj runtime.Object) fiel
 	} else {
 		labels := labels.Set(machineSet.Spec.Template.Labels)
 		if !selector.Matches(labels) {
-			errors = append(errors, field.Invalid(fldPath.Child("template","metadata","labels"), machineSet.Spec.Template.Labels, "`selector` does not match template `labels`"))
+			errors = append(errors, field.Invalid(fldPath.Child("template", "metadata", "labels"), machineSet.Spec.Template.Labels, "`selector` does not match template `labels`"))
 		}
 	}
 

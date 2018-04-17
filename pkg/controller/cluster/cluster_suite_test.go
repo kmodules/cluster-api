@@ -1,4 +1,3 @@
-
 /*
 Copyright 2018 The Kubernetes Authors.
 
@@ -15,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-
 package cluster
 
 import (
@@ -25,8 +23,8 @@ import (
 
 	"sigs.k8s.io/cluster-api/pkg/apis"
 	"sigs.k8s.io/cluster-api/pkg/client/clientset_generated/clientset"
-	"sigs.k8s.io/cluster-api/pkg/openapi"
 	"sigs.k8s.io/cluster-api/pkg/controller/sharedinformers"
+	"sigs.k8s.io/cluster-api/pkg/openapi"
 )
 
 func TestCluster(t *testing.T) {

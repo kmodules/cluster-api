@@ -37,6 +37,8 @@ import (
 
 	"regexp"
 
+	"k8s.io/client-go/util/cert"
+	"sigs.k8s.io/cluster-api/cloud"
 	gceconfig "sigs.k8s.io/cluster-api/cloud/google/gceproviderconfig"
 	gceconfigv1 "sigs.k8s.io/cluster-api/cloud/google/gceproviderconfig/v1alpha1"
 	apierrors "sigs.k8s.io/cluster-api/errors"
@@ -50,6 +52,7 @@ const (
 	ZoneAnnotationKey    = "gcp-zone"
 	NameAnnotationKey    = "gcp-name"
 
+	UIDLabelKey       = "machine-crd-uid"
 	BootstrapLabelKey = "boostrap"
 )
 
@@ -155,17 +158,23 @@ func (gce *GCEClient) Create(cluster *clusterv1.Cluster, machine *clusterv1.Mach
 	image, preloaded := gce.getImage(machine, config)
 
 	if util.IsMaster(machine) {
+		machine.Spec.Etcd.NodeId = string(machine.UID)
 		if machine.Spec.Versions.ControlPlane == "" {
 			return gce.handleMachineError(machine, apierrors.InvalidMachineConfiguration(
 				"invalid master configuration: missing Machine.Spec.Versions.ControlPlane"))
 		}
+
+		_, key, _ := cloud.LoadCACertificates()
 		var err error
 		metadata, err = masterMetadata(
 			templateParams{
-				Token:     gce.kubeadmToken,
-				Cluster:   cluster,
-				Machine:   machine,
-				Preloaded: preloaded,
+				Token:               gce.kubeadmToken,
+				Cluster:             cluster,
+				Machine:             machine,
+				Preloaded:           preloaded,
+				MasterConfiguration: buildKubeadmConfig(gce.kubeadmToken, machine),
+				CAKey:               string(cert.EncodePrivateKeyPEM(key)),
+				FrontProxyCAKey:     string(cert.EncodePrivateKeyPEM(key)),
 			},
 		)
 		if err != nil {
@@ -215,7 +224,9 @@ func (gce *GCEClient) Create(cluster *clusterv1.Cluster, machine *clusterv1.Mach
 	}
 
 	if instance == nil {
-	  labels := map[string]string{}
+		labels := map[string]string{
+			UIDLabelKey: fmt.Sprintf("%v", machine.ObjectMeta.UID),
+		}
 		if gce.machineClient == nil {
 			labels[BootstrapLabelKey] = "true"
 		}
@@ -248,7 +259,7 @@ func (gce *GCEClient) Create(cluster *clusterv1.Cluster, machine *clusterv1.Mach
 				Items: metadataItems,
 			},
 			Tags: &compute.Tags{
-				Items: []string{"https-server"},
+				Items: []string{"https-server", "network-lb-tag"},
 			},
 			Labels: labels,
 		}).Do()
@@ -262,6 +273,10 @@ func (gce *GCEClient) Create(cluster *clusterv1.Cluster, machine *clusterv1.Mach
 				"error creating GCE instance: %v", err))
 		}
 
+		if util.IsMaster(machine) {
+			err = gce.addInstanceToPool(machine)
+			fmt.Println(err, "******************************************")
+		}
 		// If we have a machineClient, then annotate the machine so that we
 		// remember exactly what VM we created for it.
 		if gce.machineClient != nil {
@@ -399,16 +414,16 @@ func (gce *GCEClient) Exists(machine *clusterv1.Machine) (bool, error) {
 	return (i != nil), err
 }
 
-func (gce *GCEClient) GetIP(machine *clusterv1.Machine) (string, error) {
+func (gce *GCEClient) GetSSHIp(machine *clusterv1.Machine) (string, error) {
 	config, err := gce.providerconfig(machine.Spec.ProviderConfig)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("Cannot unmarshal providerConfig field: %v", err)
 	}
-
 	instance, err := gce.service.Instances.Get(config.Project, config.Zone, machine.ObjectMeta.Name).Do()
 	if err != nil {
 		return "", err
 	}
+	fmt.Println("lllllllllllllllllll", instance.NetworkInterfaces)
 
 	var publicIP string
 
@@ -420,6 +435,24 @@ func (gce *GCEClient) GetIP(machine *clusterv1.Machine) (string, error) {
 		}
 	}
 	return publicIP, nil
+
+}
+
+func (gce *GCEClient) GetIP(machine *clusterv1.Machine) (string, error) {
+	config, err := gce.providerconfig(machine.Spec.ProviderConfig)
+	if err != nil {
+		return "", fmt.Errorf("Cannot unmarshal providerConfig field: %v", err)
+	}
+	zoneSplit := strings.Split(config.Zone, "-")
+	region := strings.Join(zoneSplit[:2], "-")
+	//addressUrl := fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/%v/regions/%v/addresses/%v", config.Project, config.Zone, "network-lb-ip-ha")
+	ipAddress := fmt.Sprintf("%v-lb-ip", machine.ClusterName)
+	addr, err := gce.service.Addresses.Get(config.Project, region, ipAddress).Do()
+	if err != nil {
+		return "", err
+	}
+	fmt.Println(addr, "...........^^^^^^^^^^^^^^^^^^")
+	return addr.Address, nil
 }
 
 func (gce *GCEClient) GetKubeConfig(master *clusterv1.Machine) (string, error) {
@@ -471,7 +504,8 @@ func (gce *GCEClient) requiresUpdate(a *clusterv1.Machine, b *clusterv1.Machine)
 		!reflect.DeepEqual(a.Spec.ProviderConfig, b.Spec.ProviderConfig) ||
 		!reflect.DeepEqual(a.Spec.Roles, b.Spec.Roles) ||
 		!reflect.DeepEqual(a.Spec.Versions, b.Spec.Versions) ||
-		a.ObjectMeta.Name != b.ObjectMeta.Name
+		a.ObjectMeta.Name != b.ObjectMeta.Name ||
+		a.ObjectMeta.UID != b.ObjectMeta.UID
 }
 
 // Gets the instance represented by the given machine
@@ -502,6 +536,18 @@ func (gce *GCEClient) instanceIfExists(machine *clusterv1.Machine) (*compute.Ins
 			return nil, nil
 		}
 		return nil, err
+	}
+
+	uid := instance.Labels[UIDLabelKey]
+	if uid == "" {
+		if instance.Labels[BootstrapLabelKey] != "" {
+			glog.Infof("Skipping uid check since instance %v %v %v is missing uid label due to being provisioned as part of bootstrap.", config.Project, config.Zone, identifyingMachine.ObjectMeta.Name)
+		} else {
+			return nil, fmt.Errorf("Instance %v %v %v is missing uid label.", config.Project, config.Zone, identifyingMachine.ObjectMeta.Name)
+		}
+	} else if uid != fmt.Sprintf("%v", machine.ObjectMeta.UID) {
+		glog.Infof("Instance %v exists but it has a different UID. Object UID: %v . Instance UID: %v", machine.ObjectMeta.Name, machine.ObjectMeta.UID, uid)
+		return nil, nil
 	}
 
 	return instance, nil

@@ -1,4 +1,3 @@
-
 /*
 Copyright 2018 The Kubernetes Authors.
 
@@ -15,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-
 package cluster
 
 import (
@@ -24,8 +22,8 @@ import (
 	"github.com/kubernetes-incubator/apiserver-builder/pkg/builders"
 
 	"sigs.k8s.io/cluster-api/pkg/apis/cluster/v1alpha1"
-	"sigs.k8s.io/cluster-api/pkg/controller/sharedinformers"
 	listers "sigs.k8s.io/cluster-api/pkg/client/listers_generated/cluster/v1alpha1"
+	"sigs.k8s.io/cluster-api/pkg/controller/sharedinformers"
 )
 
 // +controller:group=cluster,version=v1alpha1,kind=Cluster,resource=clusters

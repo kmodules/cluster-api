@@ -23690,6 +23690,64 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 			},
 			Dependencies: []string{},
 		},
+		"sigs.k8s.io/cluster-api/pkg/apis/cluster/v1alpha1.EtcdSpec": {
+			Schema: spec.Schema{
+				SchemaProps: spec.SchemaProps{
+					Description: "EtcdSpec defines the current etcd information hosted on current node",
+					Properties: map[string]spec.Schema{
+						"clusterName": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"imageSource": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"address": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"discovery": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"nodeId": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"isLeader": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"boolean"},
+								Format: "",
+							},
+						},
+						"version": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+						"leaderEndpoint": {
+							SchemaProps: spec.SchemaProps{
+								Type:   []string{"string"},
+								Format: "",
+							},
+						},
+					},
+				},
+			},
+			Dependencies: []string{},
+		},
 		"sigs.k8s.io/cluster-api/pkg/apis/cluster/v1alpha1.Machine": {
 			Schema: spec.Schema{
 				SchemaProps: spec.SchemaProps{
@@ -24368,11 +24426,17 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 								Ref:         ref("k8s.io/api/core/v1.NodeConfigSource"),
 							},
 						},
+						"etcd": {
+							SchemaProps: spec.SchemaProps{
+								Description: "For etcd information",
+								Ref:         ref("sigs.k8s.io/cluster-api/pkg/apis/cluster/v1alpha1.EtcdSpec"),
+							},
+						},
 					},
 				},
 			},
 			Dependencies: []string{
-				"k8s.io/api/core/v1.NodeConfigSource", "k8s.io/api/core/v1.Taint", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta", "sigs.k8s.io/cluster-api/pkg/apis/cluster/v1alpha1.MachineVersionInfo", "sigs.k8s.io/cluster-api/pkg/apis/cluster/v1alpha1.ProviderConfig"},
+				"k8s.io/api/core/v1.NodeConfigSource", "k8s.io/api/core/v1.Taint", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta", "sigs.k8s.io/cluster-api/pkg/apis/cluster/v1alpha1.EtcdSpec", "sigs.k8s.io/cluster-api/pkg/apis/cluster/v1alpha1.MachineVersionInfo", "sigs.k8s.io/cluster-api/pkg/apis/cluster/v1alpha1.ProviderConfig"},
 		},
 		"sigs.k8s.io/cluster-api/pkg/apis/cluster/v1alpha1.MachineStatus": {
 			Schema: spec.Schema{

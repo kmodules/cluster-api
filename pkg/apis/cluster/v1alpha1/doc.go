@@ -1,4 +1,3 @@
-
 /*
 Copyright 2018 The Kubernetes Authors.
 
@@ -15,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-
 // Api versions allow the api contract for a resource to be changed while keeping
 // backward compatibility by support multiple concurrent versions
 // of the same resource
@@ -26,4 +24,3 @@ limitations under the License.
 // +k8s:defaulter-gen=TypeMeta
 // +groupName=cluster.k8s.io
 package v1alpha1 // import "sigs.k8s.io/cluster-api/pkg/apis/cluster/v1alpha1"
-

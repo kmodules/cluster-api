@@ -16,7 +16,10 @@ limitations under the License.
 
 package main
 
-import "sigs.k8s.io/cluster-api/gcp-deployer/cmd"
+import (
+	"sigs.k8s.io/cluster-api/gcp-deployer/cmd"
+	_ "sigs.k8s.io/cluster-api/cloud/providers"
+)
 
 func main() {
 	cmd.Execute()
