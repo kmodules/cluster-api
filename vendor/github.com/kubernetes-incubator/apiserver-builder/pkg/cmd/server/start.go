@@ -182,11 +182,11 @@ func (o ServerOptions) Config() (*apiserver.Config, error) {
 	//}
 
 	if o.RunDelegatedAuth {
-		err := applyOptions(
-			serverConfig,
-			o.RecommendedOptions.Authentication.ApplyTo,
-			o.RecommendedOptions.Authorization.ApplyTo,
-		)
+		err := o.RecommendedOptions.Authentication.ApplyTo(&serverConfig.Authentication, serverConfig.SecureServing, serverConfig.OpenAPIConfig)
+		if err != nil {
+			return nil, err
+		}
+		err = o.RecommendedOptions.Authorization.ApplyTo(&serverConfig.Authorization)
 		if err != nil {
 			return nil, err
 		}
