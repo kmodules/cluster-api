@@ -1,21 +1,17 @@
 module sigs.k8s.io/cluster-api
 
-go 1.13
+go 1.23.0
 
 require (
 	github.com/davecgh/go-spew v1.1.1
-	github.com/gogo/protobuf v1.2.2-0.20190730201129-28a6bbf47e48 // indirect
 	github.com/onsi/ginkgo v1.8.0
 	github.com/onsi/gomega v1.5.0
 	github.com/pkg/errors v0.8.1
-	github.com/prometheus/client_golang v1.1.0 // indirect
 	github.com/sergi/go-diff v1.0.0
 	github.com/spf13/cobra v0.0.5
 	github.com/spf13/pflag v1.0.3
-	github.com/stretchr/testify v1.4.0 // indirect
-	golang.org/x/net v0.0.0-20190812203447-cdfb69ac37fc
+	golang.org/x/net v0.38.0
 	k8s.io/api v0.0.0-20191114100352-16d7abae0d2a
-	k8s.io/apiextensions-apiserver v0.0.0-20191114105449-027877536833 // indirect
 	k8s.io/apimachinery v0.0.0-20191028221656-72ed19daf4bb
 	k8s.io/apiserver v0.0.0-20191114103151-9ca1dc586682
 	k8s.io/client-go v12.0.0+incompatible
@@ -24,6 +20,69 @@ require (
 	k8s.io/klog v0.4.0
 	k8s.io/utils v0.0.0-20190801114015-581e00157fb1
 	sigs.k8s.io/controller-runtime v0.4.0
+)
+
+require (
+	cloud.google.com/go v0.38.0 // indirect
+	github.com/Azure/go-autorest/autorest v0.9.0 // indirect
+	github.com/Azure/go-autorest/autorest/adal v0.5.0 // indirect
+	github.com/Azure/go-autorest/autorest/date v0.1.0 // indirect
+	github.com/Azure/go-autorest/logger v0.1.0 // indirect
+	github.com/Azure/go-autorest/tracing v0.5.0 // indirect
+	github.com/PuerkitoBio/purell v1.1.1 // indirect
+	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
+	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
+	github.com/emicklei/go-restful v2.9.5+incompatible // indirect
+	github.com/evanphx/json-patch v4.5.0+incompatible // indirect
+	github.com/go-logr/logr v0.1.0 // indirect
+	github.com/go-openapi/jsonpointer v0.19.2 // indirect
+	github.com/go-openapi/jsonreference v0.19.2 // indirect
+	github.com/go-openapi/spec v0.19.2 // indirect
+	github.com/go-openapi/swag v0.19.2 // indirect
+	github.com/gogo/protobuf v1.2.2-0.20190730201129-28a6bbf47e48 // indirect
+	github.com/golang/groupcache v0.0.0-20180513044358-24b0969c4cb7 // indirect
+	github.com/golang/protobuf v1.3.2 // indirect
+	github.com/google/go-cmp v0.6.0 // indirect
+	github.com/google/gofuzz v1.0.0 // indirect
+	github.com/google/uuid v1.1.1 // indirect
+	github.com/googleapis/gnostic v0.3.1 // indirect
+	github.com/gophercloud/gophercloud v0.1.0 // indirect
+	github.com/hashicorp/golang-lru v0.5.1 // indirect
+	github.com/hpcloud/tail v1.0.0 // indirect
+	github.com/imdario/mergo v0.3.6 // indirect
+	github.com/inconshreveable/mousetrap v1.0.0 // indirect
+	github.com/json-iterator/go v1.1.7 // indirect
+	github.com/mailru/easyjson v0.0.0-20190614124828-94de47d64c63 // indirect
+	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
+	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
+	github.com/modern-go/reflect2 v1.0.1 // indirect
+	github.com/prometheus/client_golang v1.1.0 // indirect
+	github.com/prometheus/client_model v0.0.0-20190129233127-fd36f4220a90 // indirect
+	github.com/prometheus/common v0.6.0 // indirect
+	github.com/prometheus/procfs v0.0.3 // indirect
+	github.com/stretchr/testify v1.4.0 // indirect
+	golang.org/x/crypto v0.36.0 // indirect
+	golang.org/x/mod v0.17.0 // indirect
+	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45 // indirect
+	golang.org/x/sys v0.31.0 // indirect
+	golang.org/x/term v0.30.0 // indirect
+	golang.org/x/text v0.23.0 // indirect
+	golang.org/x/time v0.0.0-20181108054448-85acf8d2951c // indirect
+	golang.org/x/tools v0.21.1-0.20240508182429-e35e4ccd0d2d // indirect
+	golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7 // indirect
+	gomodules.xyz/jsonpatch/v2 v2.0.1 // indirect
+	gonum.org/v1/gonum v0.0.0-20190331200053-3d26580ed485 // indirect
+	google.golang.org/appengine v1.5.0 // indirect
+	gopkg.in/fsnotify.v1 v1.4.7 // indirect
+	gopkg.in/inf.v0 v0.9.1 // indirect
+	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
+	gopkg.in/yaml.v2 v2.2.4 // indirect
+	k8s.io/apiextensions-apiserver v0.0.0-20191114105449-027877536833 // indirect
+	k8s.io/gengo v0.0.0-20190822140433-26a664648505 // indirect
+	k8s.io/kube-openapi v0.0.0-20190816220812-743ec37842bf // indirect
+	sigs.k8s.io/testing_frameworks v0.1.2 // indirect
+	sigs.k8s.io/yaml v1.1.0 // indirect
 )
 
 replace (
